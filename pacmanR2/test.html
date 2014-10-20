@@ -1,0 +1,536 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+
+    <script src="Scripts/psmesh.js"></script>
+    <script src="Scripts/jquery-2.1.1.min.js"></script>
+    <script src="Scripts/glmatrix.js"></script>
+
+</head>
+<body>
+
+    <canvas id="mycanvas" width="800" height="600"></canvas>
+    <script>
+
+        var canvas = document.getElementById('mycanvas');
+        var ctx = canvas.getContext('2d');
+
+        var pMatrix = mat4.create();
+        var mvMatrix = mat4.create();
+
+        var viewportWidth = canvas.width;
+        var viewportHeight = canvas.height;
+
+        var mycamerapos = { x: 0, y: 10, z: 0 };
+
+        var CameraPos = { x: 0, y: 0, z: 0 };
+
+
+        var CameraRot = { x: 0, y: -50, z: 0 };
+
+        var testmesh = new Mesh();
+
+        //loadFile(testmesh);
+       
+        loadFile(testmesh, "untitled.obj");
+
+        function drawscene() {
+
+            var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+
+            requestAnimationFrame(drawscene);
+
+            moveCamera();
+
+            mat4.perspective(pMatrix, 1.2, viewportWidth / viewportHeight, 1.0, 900.0);
+            mat4.identity(mvMatrix);
+
+            //CameraPos.z += .1 * Math.sin(3.14 - CameraRot.y);
+            //CameraPos.x += .1 * Math.cos(3.14 - CameraRot.y);
+
+            mat4.lookAt(mvMatrix, vec3.fromValues(CameraPos.x, CameraPos.y, CameraPos.z), vec3.fromValues(CameraPos.x - 50 * Math.cos(CameraRot.y), 0, CameraPos.z - 50 * Math.sin(CameraRot.y)), vec3.fromValues(0, 1, 0));
+
+
+
+            var vert = testmesh.meshvertbuffer;
+
+            var transvert = testmesh.transformedbuffer;
+
+            var transformmatrix = mat4.create();
+
+            mat4.identity(transformmatrix);
+
+            mat4.multiply(transformmatrix, pMatrix,mvMatrix);
+
+
+
+
+
+            for (var i = 0; i < transvert.length; i += 3) {
+
+               
+
+                vec3.transformMat4(transvert.subarray(i, i + 3), vert.subarray(i, i + 3), transformmatrix);
+
+                
+
+                transvert[i] = (transvert[i] / transvert[i + 2])*400+400;
+                transvert[i+1] = (transvert[i+1] / transvert[i + 2])*400+400;
+
+                console.log("x : " + transvert[i] + "y : " + transvert[i + 1] + "z : " + transvert[i + 2]);
+            }
+
+
+
+            ctx.clearRect(0, 0, viewportWidth, viewportHeight);
+
+            for (var i = 0; i < transvert.length; i += 9) {
+
+
+                ScanLine(transvert.subarray(i, i + 9));
+                //console.log(transvert[i] + "  " +  transvert[i + 1]) ;
+               // console.log( transvert[i + 3]+ "   " +  transvert[i + 4] );
+
+                //console.log(transvert[i + 6] + "   " +  transvert[i + 7] );
+
+                ctx.beginPath();
+                ctx.moveTo(transvert[i],  transvert[i + 1] );
+                ctx.lineTo(transvert[i + 3] , transvert[i + 4]);
+                ctx.lineTo(transvert[i + 6] ,  transvert[i + 7]);
+                ctx.stroke();
+
+
+            }
+
+
+
+        };
+
+
+        var pointList = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }];
+        
+
+        function ScanLine(verts) {
+
+
+            pointList[0].x = verts[0];
+            pointList[0].y = verts[1];
+          
+
+            pointList[1].x = verts[3];
+            pointList[1].y = verts[4];
+
+            pointList[2].x = verts[6];
+            pointList[2].y = verts[7];
+
+
+
+
+            var index = [[0,1,2],[3,4,5],[6,7,8]];
+
+            var order = [0,1,2]
+
+            var skipline = 1;
+
+
+            var tempPoint = null;
+
+            //var pointList = new Array();
+            /*
+                pointList[0] = { x: x1, y:y1 }; //TOP
+            pointList[1] = { x: x2, y: y2 }; //MID
+            pointList[2] = { x: x3, y: y3 }; //BOT
+            */
+
+            /*
+            pointList[0] = { x: PointA.x , y: PointA.y , z: 1 / PointA.z, su: UVA.u / PointA.z, sv: UVA.v / PointA.z }; //TOP
+            pointList[1] = { x: PointB.x , y: PointB.y, z: 1 / PointB.z, su: UVB.u / PointB.z, sv: UVB.v / PointB.z }; //MID
+            pointList[2] = { x:PointC.x , y:PointC.y , z: 1 / PointC.z, su: UVC.u / PointC.z, sv: UVC.v / PointC.z }; //BOT
+        
+            */
+
+            //pointList[0] = { x: Math.floor(PointA.x + .5), y: Math.floor(PointA.y + .5), z: 1 / PointA.z, su: UVA.u / PointA.z, sv: UVA.v / PointA.z }; //TOP
+            //pointList[1] = { x: Math.floor(PointB.x + .5), y: Math.floor(PointB.y + .5), z: 1 / PointB.z, su: UVB.u / PointB.z, sv: UVB.v / PointB.z }; //MID
+            //pointList[2] = { x: Math.floor(PointC.x + .5), y: Math.floor(PointC.y + .5), z: 1 / PointC.z, su: UVC.u / PointC.z, sv: UVC.v / PointC.z }; //BOT
+
+
+
+
+            if (verts[ index[1][1] ])
+
+
+            if (pointList[1].y < pointList[0].y) {
+                tempPoint = pointList[0];
+                pointList[0] = pointList[1];
+                pointList[1] = tempPoint;
+
+            }
+
+            if (pointList[2].y < pointList[0].y) {
+                tempPoint = pointList[0];
+                pointList[0] = pointList[2];
+                pointList[2] = tempPoint;
+
+            }
+
+            if (pointList[2].y < pointList[1].y) {
+                tempPoint = pointList[1];
+                pointList[1] = pointList[2];
+                pointList[2] = tempPoint;
+
+            }
+
+
+
+
+
+
+
+            var TopY = Math.floor(pointList[0].y + .5);
+            var BottomY = Math.floor(pointList[2].y + .5);
+
+            var Edges = [{ a: 0, b: 1 }, { a: 0, b: 2 }, { a: 1, b: 2 }];
+            var Intercepts = new Array();
+            var Slopes = new Array();
+            var ShadeSlope = new Array();
+            var TextureGrad = new Array();
+            var TextureIntercept;
+
+            for (var i = 0; i < 3; i++) {
+
+
+                if (pointList[Edges[i].a].x == pointList[Edges[i].b].x) {
+
+                    Slopes[i] = 9999;
+                    Intercepts[i] = pointList[Edges[i].a].x;
+
+                }
+                else {
+
+                    Slopes[i] = (pointList[Edges[i].b].y - pointList[Edges[i].a].y) / (pointList[Edges[i].b].x - pointList[Edges[i].a].x);
+                    Intercepts[i] = pointList[Edges[i].a].y - Slopes[i] * pointList[Edges[i].a].x;
+                }
+
+
+                if (pointList[Edges[i].a].y == pointList[Edges[i].b].y) {
+                    TextureGrad[i] = { du: 0, dv: 0, dz: 0 };
+
+
+                }
+                else {
+
+                    TextureGrad[i] = { du: (pointList[Edges[i].b].su - pointList[Edges[i].a].su) / (pointList[Edges[i].b].y - pointList[Edges[i].a].y), dv: (pointList[Edges[i].b].sv - pointList[Edges[i].a].sv) / (pointList[Edges[i].b].y - pointList[Edges[i].a].y), dz: (pointList[Edges[i].b].z - pointList[Edges[i].a].z) / (pointList[Edges[i].b].y - pointList[Edges[i].a].y), };
+
+                }
+
+
+
+            }
+
+            if (BottomY > CanvasHeight) {
+                BottomY = CanvasHeight;
+            }
+            if (TopY < 0) {
+                TopY = 0;
+            }
+
+            var LeftTexture = { u: 0, v: 0, z: 0 };
+            var RightTexture = { u: 0, v: 0, z: 0 };
+
+
+            for (var y = TopY; y <= BottomY; y++) {
+
+                var MinX = 2000;
+                var MaxX = -1;
+
+
+                // For each edge
+                for (var i = 0; i < 3; i++) {
+
+                    var a = Edges[i].a;
+                    var b = Edges[i].b;
+
+                    // If we are in the range of this line, find the min/max
+                    if (y >= pointList[a].y && y <= pointList[b].y) {
+
+
+                        if (Slopes[i] == 9999) {
+
+                            var x = Intercepts[i];
+
+                        }
+                        else {
+
+                            var x = (y - Intercepts[i]) / Slopes[i];
+
+                        }
+
+
+                        if (x < MinX) {
+                            MinX = Math.floor(x + .5);
+
+
+                            LeftTexture.u = pointList[a].su + TextureGrad[i].du * (y - pointList[a].y);
+                            LeftTexture.v = pointList[a].sv + TextureGrad[i].dv * (y - pointList[a].y);
+                            LeftTexture.z = pointList[a].z + TextureGrad[i].dz * (y - pointList[a].y);
+
+
+
+
+
+
+                        }
+                        if (x > MaxX) {
+                            MaxX = Math.floor(x + .5);
+
+
+                            RightTexture.u = pointList[a].su + TextureGrad[i].du * (y - pointList[a].y);
+                            RightTexture.v = pointList[a].sv + TextureGrad[i].dv * (y - pointList[a].y);
+                            RightTexture.z = pointList[a].z + TextureGrad[i].dz * (y - pointList[a].y);
+
+
+                        }
+
+
+                    }
+                }
+
+                if (MaxX < MinX) {
+
+                    //nothing
+                }
+                else {
+
+
+                    var TextureGrad2 = { du: 0, dv: 0, dz: 0 };
+
+                    TextureGrad2.du = (RightTexture.u - LeftTexture.u) / (MaxX - MinX);
+                    TextureGrad2.dv = (RightTexture.v - LeftTexture.v) / (MaxX - MinX);
+                    TextureGrad2.dz = (RightTexture.z - LeftTexture.z) / (MaxX - MinX);
+
+
+
+                    var temptex = { su: 0, sv: 0, sz: 0 };
+
+                    temptex.su = LeftTexture.u;
+                    temptex.sv = LeftTexture.v;
+                    temptex.sz = LeftTexture.z;
+
+
+                    var uindex;
+                    var vindex;
+
+                    var pixelcolor;
+
+
+                    for (var writex = MinX; writex < MaxX ; writex++) {
+
+                        //context.strokeStyle = 'rgb(' + Math.floor(LeftShade.r + ColorGrad.r * (xi - MinX)) + ',' + Math.floor(LeftShade.g + ColorGrad.g * (xi - MinX)) + ',' + Math.floor(LeftShade.b + ColorGrad.b * (xi - MinX)) + ' )';
+                        if (writex < 0) {
+                            //MinX = 0;
+
+                        }
+                        else if (writex > CanvasWidth) {
+                            //MaxX = CanvasWidth;
+
+                        }
+                        else {
+
+
+
+
+                            uindex = temptex.su / temptex.sz;
+                            vindex = temptex.sv / temptex.sz;
+
+                            //pixelcolor = getPixel(uindex, vindex);
+
+                            //setPixel(writex, y, pixelcolor, ColorA);
+
+                            setPixel(writex, y, getPixel(uindex, vindex), ColorA);
+                            //setPixel(writex, y, getPixel(uindex, vindex), ColorA);
+                        }
+
+                        temptex.su += TextureGrad2.du;
+                        temptex.sv += TextureGrad2.dv;
+                        temptex.sz += TextureGrad2.dz;
+
+                    }
+
+
+
+
+
+
+
+                }
+            }
+
+
+
+
+
+
+        };
+
+
+        function KeyboardState() {
+
+            var self = this;
+
+            this.KEYSTATE = new Array(110);
+
+            for (var i = 0; i < 100; i++) {
+
+                this.KEYSTATE[i] = 0;
+
+            }
+
+            self.upkey = false;
+            self.downkey = false;
+            self.rightkey = false;
+            self.changed = false;
+
+            self.akey = false;
+            self.skey = false;
+            self.dkey = false;
+            self.wkey = false;
+
+            self.ikey = false;
+            self.kkey = false;
+            self.jkey = false;
+            self.lkey = false;
+
+
+
+        }
+        KeyboardState.prototype.setkeydown = function (keynum) {
+
+
+
+            if ((keynum < 30) || (keynum > 99)) {
+
+            }
+            else {
+
+
+                if (this.KEYSTATE[keynum] == 0) {
+                    this.KEYSTATE[keynum] = 1;
+
+                }
+
+            }
+
+
+        };
+
+        KeyboardState.prototype.setkeyup = function (keynum) {
+
+            if ((keynum < 30) || (keynum > 99)) {
+
+            }
+            else {
+
+
+                this.KEYSTATE[keynum] = 0;
+
+
+            }
+
+
+        };
+
+        KeyboardState.prototype.isKeyDown = function (keynum) {
+
+            if (this.KEYSTATE[keynum] > 0) {
+
+                return true;
+
+            }
+
+            return false;
+
+
+
+        }
+
+        var keyboard = new KeyboardState();
+
+        $(document).keyup(function (e) {
+
+            keyboard.setkeyup(e.which);
+
+        });
+
+
+
+        $(document).keydown(function (e) {
+
+            keyboard.setkeydown(e.which);
+
+            var keyid = e.which;
+
+
+        });
+
+        function moveCamera() {
+
+
+
+
+
+            if (keyboard.isKeyDown(65)) {
+
+                CameraPos.z += .1 * Math.sin(CameraRot.y-1.57);
+                CameraPos.x += .1 * Math.cos(CameraRot.y-1.57);
+            }
+
+            if (keyboard.isKeyDown(68)) {
+
+                CameraPos.z -= .1 * Math.sin(CameraRot.y-1.57);
+                CameraPos.x -= .1 * Math.cos(CameraRot.y-1.57);
+            }
+
+            if (keyboard.isKeyDown(83)) {
+
+                CameraPos.z -= .1 * Math.sin(CameraRot.y);
+                CameraPos.x -= .1 * Math.cos(CameraRot.y);
+            }
+
+            if (keyboard.isKeyDown(87)) {
+
+                CameraPos.z += .1 * Math.sin(CameraRot.y);
+                CameraPos.x += .1 * Math.cos(CameraRot.y);
+
+            }
+
+
+            if (keyboard.isKeyDown(73)) {
+
+                CameraRot.x -= .01;
+            }
+            if (keyboard.isKeyDown(75)) {
+
+                CameraRot.x += .01;
+            }
+            if (keyboard.isKeyDown(74)) {
+
+                CameraRot.y -= .01;
+            }
+            if (keyboard.isKeyDown(76)) {
+
+                CameraRot.y += .01;
+            }
+
+            //console.log("xrot : " + CameraRot.x + "    yrot : " + CameraRot.y + "zrot : " + CameraRot.z);
+
+        }
+
+        
+
+        drawscene();
+
+    </script>
+
+</body>
+</html>
